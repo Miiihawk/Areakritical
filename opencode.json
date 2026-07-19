@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "dotnet-mentor": {
+      "permission": {
+        "skill": {
+          "dotnet-logic": "allow",
+          "react-logic": "allow"
+        }
+      }
+    }
+  }
+}
