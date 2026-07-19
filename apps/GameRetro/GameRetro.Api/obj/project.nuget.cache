@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "7OtcRQ19bZg=",
+  "success": true,
+  "projectFilePath": "D:\\Documents\\CS221-Finals\\apps\\GameRetro\\GameRetro.Api\\GameRetro.Api.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Perdi\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.15\\microsoft.aspnetcore.openapi.9.0.15.nupkg.sha512",
+    "C:\\Users\\Perdi\\.nuget\\packages\\microsoft.openapi\\1.6.17\\microsoft.openapi.1.6.17.nupkg.sha512"
+  ],
+  "logs": []
+}

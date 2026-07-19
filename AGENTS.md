@@ -41,3 +41,7 @@ This repository uses `.opencode` as the local agent workflow surface.
 - Prefer simple code over clever abstractions.
 - When docs are missing, add or update material in `docs/` alongside code changes.
 - When a new app is added under `apps/`, document its purpose here and add any app-specific skills or commands if the workflow changes.
+
+## Claude's Role
+
+Read `.specify/memory/constitution.md` first. It is the authoritative source of truth.
