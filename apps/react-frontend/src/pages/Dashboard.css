@@ -1,0 +1,646 @@
+/* ==========================================================================
+   AreaKritical — user dashboard
+   Inspired by game-library / streaming homepages, in the AreaKritical palette
+   ========================================================================== */
+
+.dash {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 3vw, 2.5rem) clamp(1rem, 4vw, 3rem) 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 4vw, 3rem);
+}
+
+/* faint ambient wash so the dark page isn't flat */
+.dash::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(50% 40% at 80% 0%, rgba(87, 56, 148, 0.32), transparent 70%),
+    radial-gradient(45% 40% at 0% 20%, rgba(129, 69, 158, 0.26), transparent 70%);
+}
+
+/* --------------------------------------------------------------------------
+   Toolbar
+   -------------------------------------------------------------------------- */
+.dash__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.dash__search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  max-width: 34rem;
+  padding: 0.7rem 1.1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dash__search:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+.dash__search span {
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+.dash__search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--c-cream);
+  font: inherit;
+  outline: none;
+}
+.dash__search input::placeholder {
+  color: var(--text-dim);
+}
+.dash__toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-left: auto;
+}
+.dash__icon-btn {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--accent);
+  border-radius: 2px;
+  font-size: 1rem;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.dash__icon-btn:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+.dash__avatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  color: #04121a;
+  background: linear-gradient(135deg, var(--c-purple), var(--c-magenta));
+  box-shadow: var(--glow-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Featured banner
+   -------------------------------------------------------------------------- */
+.feat {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  /* FIXED height (not min-height): the banner rotates between games with different amounts of
+     copy, and a fixed box keeps every section below it from shifting on each rotation. */
+  height: clamp(20rem, 42vw, 30rem);
+  display: flex;
+  align-items: flex-end;
+}
+.feat__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+}
+.feat__body {
+  position: relative;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  max-width: 40rem;
+}
+.feat__eyebrow {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.8rem;
+}
+.feat__title {
+  font-size: clamp(2.4rem, 6vw, 4.2rem);
+  line-height: 1;
+  font-weight: 700;
+  color: var(--c-cream);
+  margin-bottom: 1rem;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
+}
+.feat__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem;
+  font-family: var(--display);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  margin-bottom: 1.1rem;
+}
+.feat__score {
+  color: var(--accent);
+  font-weight: 700;
+}
+.feat__pill {
+  padding: 0.15rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.feat__desc {
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--text);
+  margin-bottom: 1.6rem;
+  /* Long IGDB summaries are clamped so the copy always fits the fixed banner height. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.feat__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+.feat__dots {
+  position: absolute;
+  right: clamp(1.5rem, 4vw, 3rem);
+  bottom: clamp(1.5rem, 4vw, 3rem);
+  display: flex;
+  gap: 0.5rem;
+}
+.feat__dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(249, 247, 236, 0.3);
+  transition: width 0.2s ease, background 0.2s ease;
+}
+.feat__dot.is-active {
+  width: 22px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+
+/* The featured copy re-animates each time the banner rotates (keyed by game id). */
+.feat__body--fade {
+  animation: feat-fade 0.6s ease both;
+}
+@keyframes feat-fade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Section shell
+   -------------------------------------------------------------------------- */
+.sec__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+.sec__title {
+  font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--c-cream);
+  position: relative;
+  padding-left: 0.9rem;
+}
+.sec__title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 3px;
+  background: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+.sec__action {
+  font-family: var(--display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: none;
+  border: none;
+  transition: color 0.2s ease;
+}
+.sec__action:hover {
+  color: var(--c-cream);
+}
+
+/* --------------------------------------------------------------------------
+   Horizontal card row
+   -------------------------------------------------------------------------- */
+.row {
+  display: grid;
+  grid-auto-flow: column;
+  /* Fixed-width columns: with only a few cards the row must NOT stretch them to fill —
+     each card stays poster-sized regardless of how many titles are in the row. */
+  grid-auto-columns: clamp(9.5rem, 13vw, 11rem);
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.6rem;
+  scroll-snap-type: x proximity;
+}
+.row .card {
+  scroll-snap-align: start;
+}
+
+/* --------------------------------------------------------------------------
+   ScrollRow — arrow-button paging instead of a visible scrollbar
+   -------------------------------------------------------------------------- */
+.scroll-row {
+  position: relative;
+  /* Room on the right for the stacked arrow buttons. */
+  padding-right: 3.2rem;
+}
+.scroll-row__track {
+  scrollbar-width: none;
+}
+.scroll-row__track::-webkit-scrollbar {
+  display: none;
+}
+.scroll-row__nav {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.scroll-row__nav button {
+  width: 2.4rem;
+  height: 3.2rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--c-cream);
+  background: rgba(12, 10, 24, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.scroll-row__nav button:hover {
+  border-color: var(--border-strong);
+  background: rgba(129, 69, 158, 0.25);
+}
+
+.card {
+  cursor: pointer;
+}
+.card__cover {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 0.6rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card:hover .card__cover {
+  transform: translateY(-4px);
+  border-color: var(--border-strong);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), var(--glow-accent);
+}
+.card__score {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-family: var(--display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--c-cream);
+  background: rgba(0, 0, 0, 0.55);
+  padding: 0.15rem 0.45rem;
+  border-radius: 2px;
+  backdrop-filter: blur(4px);
+}
+.card__year {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text-dim);
+}
+.card__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--c-cream);
+  margin-bottom: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card__genre {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+/* --------------------------------------------------------------------------
+   Continue reviewing
+   -------------------------------------------------------------------------- */
+.continue {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 1rem;
+}
+.cont-card {
+  display: flex;
+  gap: 1rem;
+  padding: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  transition: border-color 0.2s ease;
+}
+.cont-card:hover {
+  border-color: var(--border-strong);
+}
+.cont-card__cover {
+  width: 4rem;
+  aspect-ratio: 3 / 4;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.cont-card__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.cont-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--c-cream);
+}
+.cont-card__genre {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+.cont-card__bar {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(129, 69, 158, 0.18);
+  overflow: hidden;
+  margin-top: 0.2rem;
+}
+.cont-card__bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-purple), var(--c-magenta));
+  box-shadow: var(--glow-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Latest reviews + sidebar split
+   -------------------------------------------------------------------------- */
+.dash__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+  align-items: start;
+}
+
+.reviews {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1rem;
+}
+.review {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.review:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-strong);
+}
+.review__cover {
+  position: relative;
+  aspect-ratio: 16 / 9;
+}
+.review__status {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  font-family: var(--display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 2px;
+  color: var(--c-cream);
+}
+.status--new {
+  background: var(--c-magenta);
+}
+.status--trending {
+  background: var(--c-purple);
+}
+.status--editorspick {
+  background: linear-gradient(120deg, var(--c-magenta), var(--c-purple));
+  color: var(--c-cream);
+}
+.review__body {
+  padding: 0.9rem 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.review__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.review__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--c-cream);
+}
+.review__score {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+.review__genre {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.review__blurb {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+.review__author {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 0.2rem;
+}
+
+/* sidebar */
+.side {
+  padding: 1.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.side__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--c-cream);
+  margin-bottom: 1rem;
+}
+.side__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.chan {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+.chan__avatar {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.chan__body {
+  min-width: 0;
+  flex: 1;
+}
+.chan__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--c-cream);
+}
+.chan__tag {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+.chan__follow {
+  font-family: var(--display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--border-strong);
+  padding: 0.3rem 0.7rem;
+  border-radius: 2px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.chan__follow:hover {
+  background: var(--accent);
+  color: #04121a;
+}
+
+/* --------------------------------------------------------------------------
+   Platform tabs
+   -------------------------------------------------------------------------- */
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.4rem;
+}
+.platform {
+  font-family: var(--display);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+}
+.platform:hover {
+  color: var(--c-cream);
+  border-color: var(--border-strong);
+}
+.platform.is-active {
+  color: #04121a;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .dash__split {
+    grid-template-columns: 1fr;
+  }
+}

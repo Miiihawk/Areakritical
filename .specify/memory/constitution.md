@@ -1,19 +1,21 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.0.1
-- Modified principles: none (I. Code Quality, II. Testing Standards, III. User Experience
-  Consistency, IV. Performance Requirements all retained unchanged)
+- Version change: 1.0.1 → 2.0.0
+- Modified principles:
+  - II. Testing Standards → II. Validation Standards (REDEFINED): automated test files are
+    no longer required by this project. Behavior is verified manually/functionally before a
+    task is "done". This is a backward-incompatible redefinition, hence the MAJOR bump.
+  - I. Code Quality, III. User Experience Consistency, IV. Performance Requirements: unchanged.
 - Added sections: none
 - Removed sections: none
 - Content updated:
-  - Technology Stack Constraints — docs/techstack.md is now populated (ASP.NET Core 9.0,
-    EntityFramework 9.0, SQL Server LocalDb, React + Vite) and is now cited as the single
-    source of truth; the prior TODO deferring this is resolved.
+  - Development Workflow & Quality Gates — "test/validation" reworded to "validation" to
+    match the redefined Principle II.
 - Templates requiring updates:
   - ✅ .specify/templates/plan-template.md (Constitution Check section already generic; no changes required)
   - ✅ .specify/templates/spec-template.md (no constitution-specific references; no changes required)
-  - ✅ .specify/templates/tasks-template.md (task categories already cover setup/tests/core/integration/polish; no changes required)
-  - ✅ .claude/skills/speckit-constitution (this file; generic guidance, no agent-specific references found)
+  - ⚠️ .specify/templates/tasks-template.md (its "tests" task category is now OPTIONAL, not mandatory; no structural change required, but test tasks are no longer auto-generated as required)
+  - ✅ .claude/skills/speckit-constitution (generic guidance, no agent-specific references found)
 - Follow-up TODOs: none
 -->
 
@@ -44,24 +46,25 @@ Rationale: This is a small student-team project where clarity and traceability d
 determine how fast defects are found and how easily new contributors onboard. Strict
 layering and deliberate abstraction keep the codebase learnable, not just functional.
 
-### II. Testing Standards
-Automated tests are the primary evidence that a feature works and keeps working.
+### II. Validation Standards
+Every feature MUST be verified to work before it is considered done. This project does
+NOT require automated test files; verification is manual/functional.
 
-- Every new service method or component with conditional logic MUST have at least one
-  corresponding automated test (unit or integration) before the associated task is
-  marked complete.
-- Tests MUST run against the narrowest scope available before a broader validation pass
-  (e.g., a single service/component test before a full suite run) so failures are
-  localized quickly.
-- Bug fixes MUST include a regression test that fails before the fix and passes after,
-  unless the defect is purely cosmetic/UI copy with no logic branch.
-- Tests MUST NOT depend on execution order or shared mutable state across test cases.
-- A pull request MUST NOT be merged with a known-failing or skipped test unless the
-  skip is documented with a linked follow-up task.
+- Every new service method or component with conditional logic MUST be exercised at least
+  once against its expected inputs (e.g., run the endpoint or UI flow and confirm the
+  outcome) before the associated task is marked complete.
+- Verification MUST target the narrowest scope available first (a single endpoint or
+  component) before a broader end-to-end pass, so failures are localized quickly.
+- Bug fixes MUST be confirmed by reproducing the defect, applying the fix, and observing
+  the corrected behavior.
+- A change MUST NOT be merged while a known defect in the behavior it touches is
+  unresolved, unless it is documented with a linked follow-up task.
 
-Rationale: The team is learning production practices; enforcing test-first discipline on
-logic-bearing code prevents silent regressions and builds a verifiable safety net as the
-codebase grows across a semester-length project.
+Rationale: This is a small student-team project that has chosen manual/functional
+verification over an automated test suite. Confirming behavior before "done" still guards
+against shipping broken flows, without the overhead of writing and maintaining test files.
+Automated tests remain permitted where a contributor finds them useful, but they are not
+required by this constitution.
 
 ### III. User Experience Consistency
 The application MUST present one coherent experience regardless of which contributor
@@ -129,8 +132,8 @@ As of this amendment it specifies:
   validated end to end (per `AGENTS.md`).
 - The matching skill (`dotnet-logic` or `react-logic`) MUST be consulted before writing
   code in that area so patterns stay consistent across contributors.
-- Before a task is considered done: the narrowest available test/validation has been run
-  and passed, the change is traceable step by step, and any new documentation need in
+- Before a task is considered done: the narrowest available validation has been run and
+  passed, the change is traceable step by step, and any new documentation need in
   `docs/` has been addressed alongside the code change.
 - Code review (self- or peer-review) MUST check compliance with the four Core Principles
   above; complexity that violates Principle I (Code Quality) MUST be justified in the PR
@@ -160,4 +163,4 @@ Constitution Check against the four Core Principles before implementation begins
 Violations MUST be either resolved or explicitly justified in the plan's Complexity
 Tracking section.
 
-**Version**: 1.0.1 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-07-20
+**Version**: 2.0.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-07-22

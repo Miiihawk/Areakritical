@@ -1,1 +1,3 @@
-<Solution />
+<Solution>
+  <Project Path="GameRetro.Api/GameRetro.Api.csproj" />
+</Solution>

@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "react-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/react-frontend", "run", "dev"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "react-frontend-verify",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/react-frontend", "run", "dev:verify"],
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}

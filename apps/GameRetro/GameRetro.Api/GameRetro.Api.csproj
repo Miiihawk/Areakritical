@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -6,8 +6,23 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- LocalDB auto-shuts down after ~5 idle minutes, and on this machine the on-demand restart
+       triggered by a connection sometimes fails (Win32 error 0x89C5010A). Starting the instance
+       explicitly before every build sidesteps that: if it's already running this is a no-op, and any
+       failure is ignored so the build itself never breaks. -->
+  <Target Name="EnsureLocalDbRunning" BeforeTargets="Build" Condition="'$(OS)' == 'Windows_NT'">
+    <Exec Command="sqllocaldb start mssqllocaldb" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low" />
+  </Target>
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.15" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.15">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.15" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
   </ItemGroup>
 
 </Project>
