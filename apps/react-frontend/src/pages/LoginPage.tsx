@@ -7,9 +7,9 @@ export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const redirectTo =
-    (location.state as { from?: { pathname?: string } } | null)?.from
-      ?.pathname ?? "/";
+  // If the user was bounced here from a protected page, return them there after login.
+  const from = (location.state as { from?: { pathname?: string } } | null)?.from
+    ?.pathname;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -23,7 +23,9 @@ export function LoginPage() {
     try {
       const response = await authApi.login(email, password);
       login(response.token, response.role);
-      navigate(redirectTo, { replace: true });
+      // Default landing depends on role: admins go to the overview, everyone else to the dashboard.
+      const destination = from ?? (response.role === "Admin" ? "/admin" : "/dashboard");
+      navigate(destination, { replace: true });
     } catch (error) {
       setErrorMessage(
         error instanceof AuthApiError ? error.message : "Login failed.",

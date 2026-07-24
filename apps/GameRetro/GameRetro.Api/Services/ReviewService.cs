@@ -29,36 +29,54 @@ public sealed class ReviewService : IReviewService
         // STEP 1 — make sure there is a valid, visible game to attach the review to.
         var localGame = await _db.Games.FirstOrDefaultAsync(g => g.Id == gameId, cancellationToken);
 
-        // A hidden game behaves like a missing one for a normal user.
+        // A hidden game behaves like a missing one for a normal user. This 404 is evaluated BEFORE the
+        // feature-003 eligibility gate below, so a hidden game's ineligibility is never revealed
+        // (contracts/review-eligibility-changes.md precedence note).
         if (localGame is { IsHidden: true })
         {
             return new ReviewSubmitResult(ReviewSubmitOutcome.GameNotFound, null);
         }
 
-        // STEP 2 — lazily create the local shadow row the first time anyone reviews this game
-        // (research.md Decision 1). We only do this after confirming IGDB actually knows the id, so a
-        // typo'd/bogus game id can't create a junk local row.
-        if (localGame is null)
-        {
-            var igdb = await _gameLibrary.GetByIdAsync(gameId, cancellationToken);
-            if (igdb is null)
-            {
-                return new ReviewSubmitResult(ReviewSubmitOutcome.GameNotFound, null);
-            }
-
-            localGame = new Game { Id = gameId, FirstSeenAt = DateTime.UtcNow };
-            _db.Games.Add(localGame);
-        }
-
-        // STEP 3 — is this the caller's FIRST review for this game, or an edit of their existing one?
-        // The (GameId, AuthorId) pair is unique (FR-005a), so there is at most one to find.
+        // STEP 2 — is this the caller's FIRST review for this game, or an edit of their existing one?
+        // The (GameId, AuthorId) pair is unique (FR-005a), so there is at most one to find. This drives
+        // create-vs-edit AND whether the feature-003 age gate applies: an EDIT is exempt (authors are
+        // never locked out of content they already wrote, even once the game is ineligible — spec edge
+        // case), so we resolve it up front.
         var review = await _db.Reviews
             .FirstOrDefaultAsync(r => r.GameId == gameId && r.AuthorId == authorId, cancellationToken);
 
         ReviewSubmitOutcome outcome;
         if (review is null)
         {
-            // Create path → 201.
+            // --- CREATE path → 201 ---
+            // The create path always fetches the game's IGDB record (feature 003): we need it both to
+            // confirm the id is real when there's no local shadow row yet, AND to read its release date
+            // for the 5-year eligibility gate.
+            var igdb = await _gameLibrary.GetByIdAsync(gameId, cancellationToken);
+
+            // If IGDB has never heard of this id and we have no local row to fall back on, it's "not found".
+            if (igdb is null && localGame is null)
+            {
+                return new ReviewSubmitResult(ReviewSubmitOutcome.GameNotFound, null);
+            }
+
+            // Feature 003: the authoritative server-side age gate (FR-004). A game must be at least 5
+            // years old (undated → ineligible, FR-002) before a NEW review can be created for it. This
+            // holds no matter how the request arrives, so a crafted POST can't bypass the UI's block.
+            if (!ReviewEligibility.IsEligible(igdb?.ReleaseDate, DateTime.UtcNow))
+            {
+                return new ReviewSubmitResult(ReviewSubmitOutcome.GameNotEligible, null);
+            }
+
+            // Lazily create the local shadow row the first time anyone reviews this game (research.md
+            // Decision 1), now that we've confirmed the id is both real and eligible — so a typo'd/bogus
+            // or ineligible game id can't create a junk local row.
+            if (localGame is null)
+            {
+                localGame = new Game { Id = gameId, FirstSeenAt = DateTime.UtcNow };
+                _db.Games.Add(localGame);
+            }
+
             review = new Review
             {
                 GameId = gameId,
@@ -70,7 +88,8 @@ public sealed class ReviewService : IReviewService
         }
         else
         {
-            // Update-in-place path → 200 (FR-005a: a resubmission edits, never duplicates).
+            // Update-in-place path → 200 (FR-005a: a resubmission edits, never duplicates). Deliberately
+            // NOT age-gated — see STEP 2.
             outcome = ReviewSubmitOutcome.Updated;
         }
 

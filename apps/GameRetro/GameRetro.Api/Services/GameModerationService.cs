@@ -42,4 +42,18 @@ public sealed class GameModerationService : IGameModerationService
         return new GameModerationResponse(
             game.Id, game.IsHidden, game.TitleOverride, game.DescriptionOverride, game.CoverImageUrlOverride);
     }
+
+    public async Task<IReadOnlyList<GameModerationResponse>> ListModerationsAsync(
+        CancellationToken cancellationToken)
+    {
+        // Read-only projection straight to the response shape; only shadow rows exist here, so this is
+        // small (one row per game an Admin has ever touched), not the whole IGDB catalogue.
+        return await _db.Games
+            .AsNoTracking()
+            .OrderByDescending(g => g.IsHidden)
+            .ThenBy(g => g.Id)
+            .Select(g => new GameModerationResponse(
+                g.Id, g.IsHidden, g.TitleOverride, g.DescriptionOverride, g.CoverImageUrlOverride))
+            .ToListAsync(cancellationToken);
+    }
 }

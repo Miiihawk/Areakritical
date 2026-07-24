@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository uses `.opencode` as the local agent workflow surface.
+This repository uses `.claude` as the local agent workflow surface.
 
 - `agents/` defines role behavior.
 - `skills/` defines domain rules and implementation preferences.

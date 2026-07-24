@@ -127,6 +127,23 @@ export function GameDetailPage() {
     return null;
   }
 
+  // Feature 003 (retro-only reviews): a new review can only be written once the game is at least 5
+  // years old. The caller's OWN existing review stays editable/deletable regardless (authors are never
+  // locked out of their own content), so the write/edit entry point shows whenever the game is eligible
+  // OR the caller already has a review here.
+  const canWriteReview = detail.isEligibleForReview || myReview !== null;
+  const eligibleYear = detail.reviewEligibleAtUtc
+    ? new Date(detail.reviewEligibleAtUtc).getFullYear()
+    : null;
+  const ineligibleNotice = (
+    <p className="gd__ineligible" role="note">
+      This game is not yet eligible for review — it must be at least 5 years old.{' '}
+      {eligibleYear !== null
+        ? `It becomes eligible in ${eligibleYear}.`
+        : 'Its release date is not yet known.'}
+    </p>
+  );
+
   return (
     <div className="gd">
       <div className="gd__grid">
@@ -139,9 +156,13 @@ export function GameDetailPage() {
           )}
 
           <div className="gd__actions">
-            <button type="button" className="btn btn--cta gd__action-primary" onClick={openReviewModal}>
-              <span aria-hidden="true">✎</span> {myReview ? 'Edit Your Review' : 'Write a Review'}
-            </button>
+            {canWriteReview ? (
+              <button type="button" className="btn btn--cta gd__action-primary" onClick={openReviewModal}>
+                <span aria-hidden="true">✎</span> {myReview ? 'Edit Your Review' : 'Write a Review'}
+              </button>
+            ) : (
+              ineligibleNotice
+            )}
           </div>
 
           <div className="gd__stats">
@@ -244,14 +265,20 @@ export function GameDetailPage() {
           {/* ---- Reviews ---- */}
           {tab === 'reviews' && (
             <>
-              <section className="gd__cta-banner">
-                <p>
-                  Share your thoughts about <strong>{detail.title}</strong> with the community.
-                </p>
-                <button type="button" className="btn btn--cta" onClick={openReviewModal}>
-                  <span aria-hidden="true">✎</span> Write Review
-                </button>
-              </section>
+              {canWriteReview ? (
+                <section className="gd__cta-banner">
+                  <p>
+                    Share your thoughts about <strong>{detail.title}</strong> with the community.
+                  </p>
+                  <button type="button" className="btn btn--cta" onClick={openReviewModal}>
+                    <span aria-hidden="true">✎</span> {myReview ? 'Edit Your Review' : 'Write Review'}
+                  </button>
+                </section>
+              ) : (
+                <section className="gd__cta-banner gd__cta-banner--ineligible">
+                  {ineligibleNotice}
+                </section>
+              )}
 
               <ReviewList
                 reviews={detail.reviews}

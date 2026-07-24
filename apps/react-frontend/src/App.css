@@ -209,6 +209,65 @@ main {
   background: var(--accent);
   box-shadow: var(--glow-accent);
 }
+/* Compact "back to admin" shortcut shown in the user navbar when an admin is on the public site. */
+.nav__admin-return {
+  padding: 0.45rem 1rem;
+  font-size: 0.74rem;
+}
+
+/* Thin rule separating the page links from the account controls (avatar + log out). */
+.nav__divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border-strong);
+}
+
+/* The account controls are matching 38px circles so the navbar's right edge reads as one set. */
+.nav__avatar,
+.nav__icon-btn {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.nav__avatar {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  color: var(--c-cream);
+  background: linear-gradient(135deg, var(--c-purple), var(--c-magenta));
+  border: 1px solid transparent;
+  box-shadow: var(--glow-accent);
+}
+.nav__avatar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 30px rgba(129, 69, 158, 0.7);
+}
+/* On the profile page itself, ring the avatar so the current location is obvious. */
+.nav__avatar.active {
+  border-color: var(--c-cream);
+}
+
+.nav__icon-btn {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+}
+.nav__icon-btn:hover {
+  color: var(--c-cream);
+  background: rgba(129, 69, 158, 0.18);
+  border-color: var(--border-strong);
+}
 
 /* --------------------------------------------------------------------------
    Landing shell + ambient background
@@ -934,6 +993,46 @@ main > form p[role='alert'] {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   gap: 1rem;
 }
+
+/* Catalogue pagination — circular page buttons under the grid. */
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.8rem 0 0.4rem;
+}
+.pager__btn {
+  min-width: 2.4rem;
+  height: 2.4rem;
+  padding: 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--c-cream);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.pager__btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pager__btn.is-active {
+  background: linear-gradient(120deg, var(--c-purple), var(--c-magenta));
+  border-color: transparent;
+  color: #fff;
+}
+.pager__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .series-card {
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -1653,6 +1752,16 @@ main > form p[role='alert'] {
 }
 .gd__cta-banner strong {
   color: var(--c-cream);
+}
+/* Feature 003: retro-only review notice shown where the "write a review" entry point would be. */
+.gd__ineligible {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.gd__cta-banner--ineligible {
+  justify-content: flex-start;
 }
 .gd__your-review {
   padding: 1.3rem;

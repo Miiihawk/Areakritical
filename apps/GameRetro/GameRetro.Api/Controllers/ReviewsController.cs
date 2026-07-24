@@ -44,6 +44,12 @@ public sealed class ReviewsController : AppControllerBase
             // 201 when it's a brand-new review, 200 when an existing one was updated (FR-005a).
             ReviewSubmitOutcome.Created => StatusCode(StatusCodes.Status201Created, result.Review),
             ReviewSubmitOutcome.Updated => Ok(result.Review),
+            // 404 (unknown/hidden game) is listed first so a hidden game's ineligibility is never
+            // revealed (feature 003 precedence note); 403 is the retro age gate.
+            ReviewSubmitOutcome.GameNotFound => NotFound(new { message = "game not found" }),
+            ReviewSubmitOutcome.GameNotEligible => StatusCode(
+                StatusCodes.Status403Forbidden,
+                new { message = "this game is not yet eligible for review — it must be at least 5 years old" }),
             _ => NotFound(new { message = "game not found" }),
         };
     }

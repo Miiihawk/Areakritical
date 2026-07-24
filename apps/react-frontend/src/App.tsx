@@ -1,6 +1,8 @@
-import { Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./App.css";
 import { useAuth } from "./auth/useAuth";
+import { profileApi } from "./services/profileApi";
 import { RequireRole } from "./auth/RequireRole";
 import { RequireAuth } from "./auth/RequireAuth";
 import { LoginPage } from "./pages/LoginPage";
@@ -10,6 +12,7 @@ import { LibraryPage } from "./pages/LibraryPage";
 import { GameDetailPage } from "./pages/GameDetailPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RankingPage } from "./pages/RankingPage";
+import { AdminOverviewPage } from "./pages/admin/AdminOverviewPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AdminGamesPage } from "./pages/admin/AdminGamesPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
@@ -27,21 +30,27 @@ const userNavLinks = [
 const adminNavLinks = [
   { to: "/admin", label: "Overview" },
   { to: "/admin/games", label: "Games" },
-  { to: "/admin/reviews", label: "Reviews" },
   { to: "/admin/users", label: "Users" },
   { to: "/admin/reports", label: "Reports" },
 ];
 
 function App() {
   const { role } = useAuth();
+  const location = useLocation();
+
+  // The navbar follows the AREA the admin is in, not just their role: on admin routes they get the
+  // admin navbar; when they step out to the public site they get the user navbar (with a shortcut
+  // back to the admin side). Regular users always get the user navbar.
+  const inAdminArea = location.pathname.startsWith("/admin");
+  const isAdmin = role === "Admin";
 
   return (
     <>
-      {/* The navbar only exists once a user is signed in, and differs by role. */}
-      {role === "Admin" ? (
+      {/* The navbar only exists once a user is signed in. */}
+      {isAdmin && inAdminArea ? (
         <AdminNavBar />
       ) : role ? (
-        <UserNavBar />
+        <UserNavBar isAdmin={isAdmin} />
       ) : null}
 
       <main>
@@ -103,7 +112,7 @@ function App() {
             path="/admin"
             element={
               <RequireRole allowedRoles={["Admin"]}>
-                <AdminPage />
+                <AdminOverviewPage />
               </RequireRole>
             }
           />
@@ -134,24 +143,6 @@ function App() {
             }
           />
 
-          {/* Remaining admin links — stubbed for later development. */}
-          {adminNavLinks
-            .filter(
-              (link) =>
-                !["/admin", "/admin/users", "/admin/games", "/admin/reports"].includes(link.to),
-            )
-            .map((link) => (
-              <Route
-                key={link.to}
-                path={link.to}
-                element={
-                  <RequireRole allowedRoles={["Admin"]}>
-                    <ComingSoon title={`Admin · ${link.label}`} />
-                  </RequireRole>
-                }
-              />
-            ))}
-
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -173,9 +164,57 @@ function Brand({ to = "/" }: { to?: string }) {
   );
 }
 
-/** Navbar for signed-in regular users. */
-function UserNavBar() {
-  const { role, logout } = useAuth();
+/**
+ * The signed-in user's avatar in the navbar — their initials, linking to the profile page. It
+ * replaces what used to be a plain "Profile" text link, so the navbar's right side reads as a
+ * consistent set of controls (avatar + log out) rather than mixed text and buttons.
+ */
+function NavAvatar() {
+  const { token } = useAuth();
+  const [initials, setInitials] = useState("AK");
+
+  useEffect(() => {
+    let active = true;
+    profileApi
+      .get(token)
+      .then((profile) => {
+        if (!active) return;
+        // Same derivation as the profile page, so the two avatars always agree.
+        const name = profile.displayName?.trim() || profile.username || "";
+        const derived = name.replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase();
+        if (derived) setInitials(derived);
+      })
+      .catch(() => {
+        /* Keep the fallback initials if the profile can't be loaded — the link still works. */
+      });
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  return (
+    <NavLink to="/profile" className="nav__avatar" title="Your profile" aria-label="Your profile">
+      {initials}
+    </NavLink>
+  );
+}
+
+/** The log-out control, shared by both navbars so they stay identical. */
+function LogoutButton() {
+  const { logout } = useAuth();
+
+  return (
+    <button type="button" className="btn btn--cta" onClick={() => logout()}>
+      Log out
+    </button>
+  );
+}
+
+/**
+ * Navbar for the public site. Shown to regular users, and also to an admin who has stepped out to
+ * the site — in that case `isAdmin` adds a shortcut back to the admin dashboard.
+ */
+function UserNavBar({ isAdmin = false }: { isAdmin?: boolean }) {
 
   return (
     <nav className="nav">
@@ -190,15 +229,14 @@ function UserNavBar() {
       </div>
 
       <div className="nav__actions">
-        <NavLink to="/profile" className="nav__ghost">
-          Profile
-        </NavLink>
-        <span className="nav__status">
-          <span className="nav__dot" aria-hidden="true" /> {role}
-        </span>
-        <button type="button" className="btn btn--cta" onClick={() => logout()}>
-          Log out
-        </button>
+        {isAdmin && (
+          <NavLink to="/admin" className="btn btn--outline nav__admin-return">
+            <span aria-hidden="true">←</span> Admin
+          </NavLink>
+        )}
+        <span className="nav__divider" aria-hidden="true" />
+        <NavAvatar />
+        <LogoutButton />
       </div>
     </nav>
   );
@@ -206,8 +244,6 @@ function UserNavBar() {
 
 /** Navbar for signed-in admins — management-focused links. */
 function AdminNavBar() {
-  const { role, logout } = useAuth();
-
   return (
     <nav className="nav nav--admin">
       <div className="nav__brand-wrap">
@@ -227,12 +263,9 @@ function AdminNavBar() {
         <NavLink to="/dashboard" className="nav__ghost">
           View site
         </NavLink>
-        <span className="nav__status">
-          <span className="nav__dot" aria-hidden="true" /> {role}
-        </span>
-        <button type="button" className="btn btn--cta" onClick={() => logout()}>
-          Log out
-        </button>
+        <span className="nav__divider" aria-hidden="true" />
+        <NavAvatar />
+        <LogoutButton />
       </div>
     </nav>
   );
@@ -334,26 +367,6 @@ function HomePage() {
       {/* Bottom strip: featured card + release ticker */}
       <div className="footstrip"></div>
     </div>
-  );
-}
-
-function AdminPage() {
-  return (
-    <section className="panel">
-      <h1>Admin Panel</h1>
-      <p>Admin-only area.</p>
-    </section>
-  );
-}
-
-/** Placeholder for routes scaffolded but not yet built. */
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <section className="panel">
-      <p className="panel__eyebrow">In development</p>
-      <h1>{title}</h1>
-      <p>This section is scaffolded and coming in a later build.</p>
-    </section>
   );
 }
 

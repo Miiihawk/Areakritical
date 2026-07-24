@@ -18,6 +18,14 @@ public sealed class AdminGamesController : AppControllerBase
         _gameModerationService = gameModerationService;
     }
 
+    /// <summary>GET /api/admin/games — list every locally moderated game (hidden and/or overridden).</summary>
+    [HttpGet]
+    public async Task<IActionResult> ListModerations(CancellationToken cancellationToken)
+    {
+        var moderations = await _gameModerationService.ListModerationsAsync(cancellationToken);
+        return Ok(moderations);
+    }
+
     /// <summary>PUT /api/admin/games/{gameId} — set hidden flag and/or overrides (lazily creates the row).</summary>
     [HttpPut("{gameId:long}")]
     public async Task<IActionResult> SetModeration(

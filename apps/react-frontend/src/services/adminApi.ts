@@ -70,6 +70,12 @@ function deleteUser(userId: string, token: string | null): Promise<void> {
 }
 
 // --- Games ---
+// All games that currently have a local shadow row (hidden and/or overridden). The admin games page
+// merges this against the live IGDB catalogue.
+function listGameModerations(token: string | null): Promise<GameModeration[]> {
+  return apiRequest<GameModeration[]>('/api/admin/games', { token });
+}
+
 function setGameModeration(
   gameId: number,
   input: {
@@ -121,6 +127,7 @@ export const adminApi = {
   updateUserRole,
   updateUserStatus,
   deleteUser,
+  listGameModerations,
   setGameModeration,
   deleteReview,
   deleteComment,

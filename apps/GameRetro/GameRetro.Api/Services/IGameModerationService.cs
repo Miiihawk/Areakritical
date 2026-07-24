@@ -11,4 +11,11 @@ public interface IGameModerationService
     /// </summary>
     Task<GameModerationResponse> SetModerationAsync(
         long gameId, GameModerationRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists every game that has a local shadow row (i.e. has been hidden or overridden at least
+    /// once). The admin games page merges this against the live IGDB catalogue so it can badge hidden
+    /// games and pre-fill the edit form with any existing overrides.
+    /// </summary>
+    Task<IReadOnlyList<GameModerationResponse>> ListModerationsAsync(CancellationToken cancellationToken);
 }

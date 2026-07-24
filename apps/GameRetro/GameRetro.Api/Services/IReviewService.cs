@@ -13,9 +13,10 @@ namespace GameRetro.Api.Services;
 /// <summary>What happened when a review was submitted.</summary>
 public enum ReviewSubmitOutcome
 {
-    Created,      // → 201: the caller had no review for this game yet.
-    Updated,      // → 200: the caller's existing review was edited in place (FR-005a).
-    GameNotFound, // → 404: the game is unknown to IGDB, or hidden.
+    Created,         // → 201: the caller had no review for this game yet.
+    Updated,         // → 200: the caller's existing review was edited in place (FR-005a).
+    GameNotFound,    // → 404: the game is unknown to IGDB, or hidden.
+    GameNotEligible, // → 403: the game is < 5 years old (or undated) and the caller has no review yet (feature 003).
 }
 
 public sealed record ReviewSubmitResult(ReviewSubmitOutcome Outcome, ReviewResponse? Review);

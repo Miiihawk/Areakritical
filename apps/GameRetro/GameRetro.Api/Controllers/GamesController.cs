@@ -48,11 +48,36 @@ public sealed class GamesController : AppControllerBase
         [FromQuery] string? genre = null,
         [FromQuery] int? yearFrom = null,
         [FromQuery] int? yearTo = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 24,
         CancellationToken cancellationToken = default)
     {
+        // Keep paging inputs sane no matter what the client sent (mirrors the detail page's clamps).
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize is < 1 or > 48 ? 24 : pageSize;
+
         var games = await _gameLibraryService.BrowseAsync(
-            sort, platform, genre, yearFrom, yearTo, cancellationToken);
+            sort, platform, genre, yearFrom, yearTo, page, pageSize, cancellationToken);
         return Ok(games);
+    }
+
+    /// <summary>
+    /// GET /api/games/browse/count — how many games match the given browse filters, so the library
+    /// can render numbered pagination. Same filter params as <see cref="Browse"/> (page/pageSize are
+    /// irrelevant to a total, so they're omitted).
+    /// </summary>
+    [HttpGet("browse/count")]
+    public async Task<IActionResult> BrowseCount(
+        [FromQuery] string sort = "popular",
+        [FromQuery] string? platform = null,
+        [FromQuery] string? genre = null,
+        [FromQuery] int? yearFrom = null,
+        [FromQuery] int? yearTo = null,
+        CancellationToken cancellationToken = default)
+    {
+        var totalCount = await _gameLibraryService.BrowseCountAsync(
+            sort, platform, genre, yearFrom, yearTo, cancellationToken);
+        return Ok(new { totalCount });
     }
 
     /// <summary>

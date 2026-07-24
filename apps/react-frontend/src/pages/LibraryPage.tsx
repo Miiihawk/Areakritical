@@ -26,6 +26,41 @@ function toBrowseSort(sort: SortKey): BrowseSort {
   return sort === 'rating' ? 'popular' : sort;
 }
 
+/**
+ * Projects a community-ranking row (from OUR /rankings endpoint) into the catalogue card shape so the
+ * "Highest Rated" grid can render straight from our database's leaderboard. Fields IGDB would supply
+ * but the ranking row omits (description/developer/publisher/…) aren't shown on the card, so null/empty
+ * is fine; genres come through for the card's chips.
+ */
+function rankingToGame(entry: GameRanking): Game {
+  return {
+    id: entry.id,
+    title: entry.title,
+    description: null,
+    coverImageUrl: entry.coverImageUrl,
+    releaseYear: entry.releaseYear,
+    age: null,
+    systemRequirements: null,
+    genres: entry.genres,
+    developer: null,
+    publisher: null,
+  };
+}
+
+// How many catalogue cards fill one browse page. MUST match the backend's default browse pageSize
+// (GamesController.Browse) so the total-count → page-count math lines up.
+const PAGE_SIZE = 24;
+
+/** The sliding window of page numbers to show around the current page (e.g. 4 5 [6] 7 8). */
+function pageWindow(current: number, total: number, size = 5): number[] {
+  let start = Math.max(1, current - Math.floor(size / 2));
+  const end = Math.min(total, start + size - 1);
+  start = Math.max(1, end - size + 1);
+  const pages: number[] = [];
+  for (let p = start; p <= end; p += 1) pages.push(p);
+  return pages;
+}
+
 const PLATFORM_FILTERS: { key: string | null; label: string }[] = [
   { key: null, label: 'All Platforms' },
   { key: 'pc', label: 'PC' },
@@ -77,7 +112,7 @@ export function LibraryPage() {
 
   const [mode, setMode] = useState<'browse' | 'search'>('browse');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sort, setSort] = useState<SortKey>('rating');
+  const [sort, setSort] = useState<SortKey>('name');
   const [platform, setPlatform] = useState<string | null>(null);
   const [genre, setGenre] = useState<string | null>(null);
   const [decade, setDecade] = useState<string | null>(null);
@@ -85,12 +120,22 @@ export function LibraryPage() {
 
   const [games, setGames] = useState<Game[]>([]);
   const [rankings, setRankings] = useState<GameRanking[]>([]);
+  const [rankingsLoaded, setRankingsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
 
-  // Community scores, loaded once — keyed by game id for the card badges.
+  const hasActiveFilters = platform !== null || genre !== null || decade !== null;
+  // The unfiltered "Highest Rated" view renders from our leaderboard (rankings), not the browse
+  // catalogue — so it is neither paged nor counted via the browse endpoints.
+  const isRatingLeaderboard = sort === 'rating' && mode === 'browse' && !hasActiveFilters;
+
+  // Our community leaderboard, loaded once — keyed by game id for the card badges, and the direct
+  // source for the "Highest Rated" grid (see shownGames).
   useEffect(() => {
     let active = true;
+    setRankingsLoaded(false);
     gamesApi
       .rankings(token)
       .then((result) => {
@@ -98,6 +143,9 @@ export function LibraryPage() {
       })
       .catch(() => {
         /* Scores are decoration here; the catalogue still renders without them. */
+      })
+      .finally(() => {
+        if (active) setRankingsLoaded(true);
       });
     return () => {
       active = false;
@@ -112,9 +160,15 @@ export function LibraryPage() {
     return map;
   }, [rankings]);
 
-  // Browse mode: refetch whenever the sort or any filter changes.
+  // Any change to the result SET (sort, filters, or leaving search) restarts paging at page 1.
   useEffect(() => {
-    if (mode !== 'browse') {
+    setPage(1);
+  }, [mode, sort, platform, genre, decade]);
+
+  // Browse mode: refetch the current page whenever the sort, a filter, or the page changes. The
+  // unfiltered "Highest Rated" leaderboard renders from rankings instead, so it's skipped here.
+  useEffect(() => {
+    if (mode !== 'browse' || isRatingLeaderboard) {
       return;
     }
     let active = true;
@@ -126,6 +180,7 @@ export function LibraryPage() {
         toBrowseSort(sort),
         { platform, genre, yearFrom: yearRange?.from, yearTo: yearRange?.to },
         token,
+        page,
       )
       .then((result) => {
         if (active) setGames(result);
@@ -141,7 +196,37 @@ export function LibraryPage() {
     return () => {
       active = false;
     };
-  }, [mode, sort, platform, genre, decade, token]);
+  }, [mode, sort, platform, genre, decade, page, token, isRatingLeaderboard]);
+
+  // Total match count for numbered pagination — refetched on filter/sort change, NOT on page change.
+  useEffect(() => {
+    if (mode !== 'browse' || isRatingLeaderboard) {
+      setTotalCount(null);
+      return;
+    }
+    let active = true;
+    const yearRange = YEAR_FILTERS.find((entry) => entry.key === decade);
+    gamesApi
+      .browseCount(
+        toBrowseSort(sort),
+        { platform, genre, yearFrom: yearRange?.from, yearTo: yearRange?.to },
+        token,
+      )
+      .then((count) => {
+        if (active) setTotalCount(count);
+      })
+      .catch(() => {
+        if (active) setTotalCount(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [mode, sort, platform, genre, decade, token, isRatingLeaderboard]);
+
+  // Jump back to the top of the archive when the page changes (a no-op on the initial page 1).
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [page]);
 
   const runSearch = useCallback(
     async (term: string) => {
@@ -176,21 +261,30 @@ export function LibraryPage() {
     }
   }, [initialQuery, runSearch]);
 
-  // "Highest Rated" always sorts by OUR community scores (reviewed games first, best score on
-  // top; unreviewed keep their catalogue order after them). In search mode the other sorts are
-  // applied client-side too, since the search endpoint has no ordering options.
+  // "Highest Rated" reflects OUR community leaderboard, sourced from our own database (the /rankings
+  // endpoint), NEVER IGDB's popularity/rating. The unfiltered default view renders that leaderboard
+  // directly — our top-rated games, best score first — so the catalogue's IGDB ordering can't leak in.
+  // When the user narrows the catalogue (a filter) or searches, we order THAT set by our community
+  // score instead (the narrowed set still comes from the server, but the ranking is always ours).
   const shownGames = useMemo(() => {
-    const copy = [...games];
     if (sort === 'rating') {
-      return copy.sort(
+      if (mode === 'browse' && !hasActiveFilters) {
+        // The pure leaderboard: rated games only, already ordered best-first by our DB.
+        return rankings.map(rankingToGame);
+      }
+      // Filtered catalogue or search results, re-ordered by our community score (reviewed games
+      // first, best on top; unrated fall to the bottom in their existing order).
+      return [...games].sort(
         (a, b) =>
           (rankById.get(b.id)?.aggregateScore ?? -1) - (rankById.get(a.id)?.aggregateScore ?? -1),
       );
     }
     if (mode === 'browse') {
       // The backend already ordered the catalogue for newest/oldest/name.
-      return copy;
+      return games;
     }
+    // Search mode has no server ordering, so apply the simple catalogue sorts client-side.
+    const copy = [...games];
     switch (sort) {
       case 'name':
         return copy.sort((a, b) => a.title.localeCompare(b.title));
@@ -199,9 +293,19 @@ export function LibraryPage() {
       default:
         return copy.sort((a, b) => (a.releaseYear ?? Infinity) - (b.releaseYear ?? Infinity));
     }
-  }, [games, mode, sort, rankById]);
+  }, [games, mode, sort, rankById, rankings, hasActiveFilters]);
 
-  const hasActiveFilters = platform !== null || genre !== null || decade !== null;
+  // The unfiltered "Highest Rated" view renders from the leaderboard fetch, not the browse fetch, so
+  // its loading/empty states must wait on rankings rather than the catalogue request.
+  const isBusy = isRatingLeaderboard ? !rankingsLoaded : isLoading;
+
+  // Numbered pagination applies only to the browse catalogue (not search, not the ≤50 leaderboard).
+  const totalPages =
+    totalCount != null ? Math.max(1, Math.ceil(totalCount / PAGE_SIZE)) : 1;
+  const showPager = mode === 'browse' && !isRatingLeaderboard && totalPages > 1;
+  // The toolbar count reflects the whole matching catalogue when browsing, not just this page.
+  const displayCount =
+    mode === 'browse' && !isRatingLeaderboard && totalCount != null ? totalCount : shownGames.length;
 
   return (
     <div className="directory">
@@ -224,8 +328,9 @@ export function LibraryPage() {
       {/* Results toolbar — count, sort, and the Filters toggle, mirroring the reference. */}
       <div className="directory__toolbar">
         <p className="directory__count">
-          Found <strong>{shownGames.length}</strong> indexed {shownGames.length === 1 ? 'title' : 'titles'}
+          Found <strong>{displayCount}</strong> indexed {displayCount === 1 ? 'title' : 'titles'}
           {mode === 'search' && ` for “${searchTerm}”`}
+          {showPager && ` · page ${page} of ${totalPages}`}
         </p>
         <div className="directory__controls">
           <label className="directory__sort">
@@ -316,11 +421,15 @@ export function LibraryPage() {
         </p>
       )}
 
-      {isLoading && <p className="directory__status">Loading the archive…</p>}
+      {isBusy && <p className="directory__status">Loading the archive…</p>}
 
-      {!isLoading && !errorMessage && shownGames.length === 0 && (
+      {!isBusy && !errorMessage && shownGames.length === 0 && (
         <p className="directory__status">
-          {mode === 'search' ? `No titles found for “${searchTerm}”.` : 'No titles to show.'}
+          {mode === 'search'
+            ? `No titles found for “${searchTerm}”.`
+            : isRatingLeaderboard
+              ? 'No community scores yet — reviews power the leaderboard.'
+              : 'No titles to show.'}
         </p>
       )}
 
@@ -369,6 +478,58 @@ export function LibraryPage() {
           );
         })}
       </ul>
+
+      {showPager && (
+        <nav className="pager" aria-label="Catalogue pages">
+          <button
+            type="button"
+            className="pager__btn"
+            onClick={() => setPage(1)}
+            disabled={page === 1}
+            aria-label="First page"
+          >
+            «
+          </button>
+          <button
+            type="button"
+            className="pager__btn"
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={page === 1}
+            aria-label="Previous page"
+          >
+            ‹
+          </button>
+          {pageWindow(page, totalPages).map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`pager__btn ${p === page ? 'is-active' : ''}`}
+              onClick={() => setPage(p)}
+              aria-current={p === page ? 'page' : undefined}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="pager__btn"
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            disabled={page === totalPages}
+            aria-label="Next page"
+          >
+            ›
+          </button>
+          <button
+            type="button"
+            className="pager__btn"
+            onClick={() => setPage(totalPages)}
+            disabled={page === totalPages}
+            aria-label="Last page"
+          >
+            »
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

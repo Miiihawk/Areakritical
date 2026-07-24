@@ -11,4 +11,8 @@ public sealed record GameRankingResponse(
     string? CoverImageUrl,
     int? ReleaseYear,
     double AggregateScore,
-    int ReviewCount);
+    int ReviewCount,
+    // IGDB metadata (genre names), carried so the library's "Highest Rated" cards — which render
+    // straight from this leaderboard, our own DB's ordering — keep the same genre chips as the rest
+    // of the catalogue. The SCORE/ORDER never come from IGDB; only these display tags do.
+    IReadOnlyList<string> Genres);

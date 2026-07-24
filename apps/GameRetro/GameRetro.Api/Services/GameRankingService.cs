@@ -75,7 +75,8 @@ public sealed class GameRankingService : IGameRankingService
                     local?.CoverImageUrlOverride ?? meta?.CoverImageUrl,
                     meta?.ReleaseYear,
                     a.Score,
-                    a.Count);
+                    a.Count,
+                    meta?.Genres ?? Array.Empty<string>());
             })
             .ToList();
     }

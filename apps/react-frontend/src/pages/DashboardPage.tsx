@@ -18,6 +18,19 @@ const PLATFORMS: { key: string | null; label: string }[] = [
   { key: 'retro', label: 'Retro' },
 ]
 
+// Genre keys understood by the backend's browse endpoint (null = no filter), mirroring the library.
+const GENRES: { key: string | null; label: string }[] = [
+  { key: null, label: 'All' },
+  { key: 'rpg', label: 'RPG' },
+  { key: 'shooter', label: 'Shooter' },
+  { key: 'adventure', label: 'Adventure' },
+  { key: 'platformer', label: 'Platformer' },
+  { key: 'strategy', label: 'Strategy' },
+  { key: 'racing', label: 'Racing' },
+  { key: 'fighting', label: 'Fighting' },
+  { key: 'puzzle', label: 'Puzzle' },
+]
+
 // How many of the featured pool games rotate through the banner.
 const FEATURED_POOL_SIZE = 5
 const FEATURED_ROTATE_MS = 7000
@@ -43,6 +56,9 @@ export function DashboardPage() {
   const [platformGames, setPlatformGames] = useState<Game[]>([])
   const [activePlatform, setActivePlatform] = useState<string | null>(null)
   const [isLoadingPlatform, setIsLoadingPlatform] = useState(true)
+  const [genreGames, setGenreGames] = useState<Game[]>([])
+  const [activeGenre, setActiveGenre] = useState<string | null>(null)
+  const [isLoadingGenre, setIsLoadingGenre] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [featuredIndex, setFeaturedIndex] = useState(0)
 
@@ -117,6 +133,26 @@ export function DashboardPage() {
     }
   }, [activePlatform, token])
 
+  // The Browse by Genre row — same pattern as platform, refetched whenever the active genre changes.
+  useEffect(() => {
+    let active = true
+    setIsLoadingGenre(true)
+    gamesApi
+      .browse('popular', { genre: activeGenre }, token)
+      .then((result) => {
+        if (active) setGenreGames(result)
+      })
+      .catch(() => {
+        if (active) setGenreGames([])
+      })
+      .finally(() => {
+        if (active) setIsLoadingGenre(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [activeGenre, token])
+
   const featured = featuredGames[featuredIndex] ?? null
 
   // Auto-rotate the featured banner through the pool.
@@ -132,23 +168,16 @@ export function DashboardPage() {
   }, [featuredGames.length])
 
   const displayName = profile?.displayName?.trim() || profile?.username || 'reviewer'
-  const initials = displayName.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'AK'
 
   const popular = useMemo(() => rankings.slice(0, 12), [rankings])
 
   return (
     <div className="dash">
       {/* ---- toolbar ---- */}
+      {/* Search only: browsing and the profile avatar live in the global navbar, so they aren't
+          duplicated here. */}
       <div className="dash__toolbar">
         <SearchSuggest placeholder="Search titles in the archive..." />
-        <div className="dash__toolbar-right">
-          <Link to="/library" className="dash__icon-btn" aria-label="Browse library">
-            ▦
-          </Link>
-          <Link to="/profile" className="dash__avatar" aria-label="Your profile">
-            {initials}
-          </Link>
-        </div>
       </div>
 
       <p className="dash__greeting">
@@ -262,6 +291,38 @@ export function DashboardPage() {
         ) : (
           <ScrollRow>
             {platformGames.map((game) => (
+              <Link key={game.id} to={`/games/${game.id}`} className="card">
+                <div className="card__cover" style={coverBackground(game.coverImageUrl)}>
+                  {game.releaseYear && <span className="card__year">{game.releaseYear}</span>}
+                </div>
+                <h3 className="card__title">{game.title}</h3>
+              </Link>
+            ))}
+          </ScrollRow>
+        )}
+      </Section>
+
+      {/* ---- browse by genre (IGDB catalogue metadata) ---- */}
+      <Section title="Browse by Genre">
+        <div className="platforms">
+          {GENRES.map((genre) => (
+            <button
+              key={genre.label}
+              type="button"
+              className={`platform ${activeGenre === genre.key ? 'is-active' : ''}`}
+              onClick={() => setActiveGenre(genre.key)}
+            >
+              {genre.label}
+            </button>
+          ))}
+        </div>
+        {isLoadingGenre ? (
+          <p className="dash__status">Loading titles…</p>
+        ) : genreGames.length === 0 ? (
+          <p className="dash__status">No titles found for this genre.</p>
+        ) : (
+          <ScrollRow>
+            {genreGames.map((game) => (
               <Link key={game.id} to={`/games/${game.id}`} className="card">
                 <div className="card__cover" style={coverBackground(game.coverImageUrl)}>
                   {game.releaseYear && <span className="card__year">{game.releaseYear}</span>}

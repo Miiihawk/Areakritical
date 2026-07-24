@@ -25,4 +25,9 @@ public sealed record GameDetailResponse(
     int ReviewCount,
     IReadOnlyList<ReviewResponse> Reviews,
     int Page,
-    int PageSize);
+    int PageSize,
+    // Feature 003 (retro-only reviews): whether a NEW review may be created for this game right now
+    // (a game must be at least 5 years old), and when it becomes/became eligible (release date + 5
+    // years; null when the release date is unknown — in which case IsEligibleForReview is false too).
+    bool IsEligibleForReview,
+    DateTime? ReviewEligibleAtUtc);

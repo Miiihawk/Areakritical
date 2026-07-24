@@ -17,6 +17,7 @@ public sealed class GameLibraryService : IGameLibraryService
     private const string TokenCacheKey = "igdb_access_token";
     private const string TwitchTokenUrl = "https://id.twitch.tv/oauth2/token";
     private const string IgdbGamesUrl = "https://api.igdb.com/v4/games";
+    private const string IgdbGamesCountUrl = "https://api.igdb.com/v4/games/count";
     private const string CoverBaseUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/";
 
     private readonly IHttpClientFactory _httpClientFactory;
@@ -87,12 +88,37 @@ public sealed class GameLibraryService : IGameLibraryService
 
     public async Task<IReadOnlyList<GameDto>> BrowseAsync(
         string sort, string? platform, string? genre, int? yearFrom, int? yearTo,
+        int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var where = BuildBrowseWhere(sort, platform, genre, yearFrom, yearTo);
+        var sortClause = BuildBrowseSort(sort);
+        var offset = Math.Max(0, (page - 1) * pageSize);
+
+        var body =
+            $"fields {GameFields}; where {where}; {sortClause}; limit {pageSize}; offset {offset};";
+        var games = await QueryIgdbAsync(body, cancellationToken);
+        return games.Select(MapToDto).ToList();
+    }
+
+    public async Task<int> BrowseCountAsync(
+        string sort, string? platform, string? genre, int? yearFrom, int? yearTo,
         CancellationToken cancellationToken)
     {
-        // Only well-known titles with a cover, so the browse grid always looks intentional rather
-        // than surfacing IGDB's long tail of stubs. total_rating_count is used purely as a
-        // NOTABILITY threshold (how many people know the game) — never as a score. All scores,
-        // reviews, and rankings in this app come from OUR OWN Reviews table, not IGDB.
+        // Uses the SAME where clause as BrowseAsync so the total matches exactly what paging walks.
+        var where = BuildBrowseWhere(sort, platform, genre, yearFrom, yearTo);
+        return await QueryIgdbCountAsync(where, cancellationToken);
+    }
+
+    /// <summary>
+    /// Builds the shared APICALYPSE <c>where</c> clause for browse + count. Only well-known titles with
+    /// a cover, so the grid never surfaces IGDB's long tail of stubs. total_rating_count is a NOTABILITY
+    /// threshold (how widely known a game is), never a score — all scores/reviews/rankings come from OUR
+    /// OWN Reviews table, not IGDB. The date-sorts additionally require a known release date so the
+    /// ordering (and its count) stay well-defined.
+    /// </summary>
+    private static string BuildBrowseWhere(
+        string? sort, string? platform, string? genre, int? yearFrom, int? yearTo)
+    {
         var conditions = new List<string> { "cover != null", "total_rating_count >= 10" };
 
         if (!string.IsNullOrWhiteSpace(platform) && PlatformIds.TryGetValue(platform, out var platformIds))
@@ -117,25 +143,26 @@ public sealed class GameLibraryService : IGameLibraryService
             conditions.Add($"first_release_date < {toUnix}");
         }
 
-        // Default catalogue order is popularity (rating COUNT = how widely known), not IGDB's
-        // rating value — "Highest Rated" ordering is applied by the frontend using our DB scores.
-        var sortClause = sort?.ToLowerInvariant() switch
-        {
-            "newest" => "sort first_release_date desc",
-            "oldest" => "sort first_release_date asc",
-            "name" => "sort name asc",
-            _ => "sort total_rating_count desc",
-        };
-        if (sortClause.Contains("first_release_date"))
+        var normalized = sort?.ToLowerInvariant();
+        if (normalized is "newest" or "oldest")
         {
             conditions.Add("first_release_date != null");
         }
 
-        var body =
-            $"fields {GameFields}; where {string.Join(" & ", conditions)}; {sortClause}; limit 24;";
-        var games = await QueryIgdbAsync(body, cancellationToken);
-        return games.Select(MapToDto).ToList();
+        return string.Join(" & ", conditions);
     }
+
+    /// <summary>
+    /// The catalogue ordering. Default is popularity (rating COUNT = how widely known), not IGDB's
+    /// rating value — "Highest Rated" ordering is applied by the frontend using our DB scores.
+    /// </summary>
+    private static string BuildBrowseSort(string? sort) => sort?.ToLowerInvariant() switch
+    {
+        "newest" => "sort first_release_date desc",
+        "oldest" => "sort first_release_date asc",
+        "name" => "sort name asc",
+        _ => "sort total_rating_count desc",
+    };
 
     public async Task<IReadOnlyList<GameDto>> GetByIdsAsync(
         IReadOnlyCollection<long> ids, CancellationToken cancellationToken)
@@ -169,6 +196,30 @@ public sealed class GameLibraryService : IGameLibraryService
 
         var games = await response.Content.ReadFromJsonAsync<List<IgdbGame>>(cancellationToken);
         return games ?? [];
+    }
+
+    /// <summary>
+    /// Runs a matching <c>/count</c> query (same auth/headers as <see cref="QueryIgdbAsync"/>). IGDB's
+    /// count endpoint takes just the <c>where</c> clause and returns <c>{ "count": N }</c>.
+    /// </summary>
+    private async Task<int> QueryIgdbCountAsync(string whereClause, CancellationToken cancellationToken)
+    {
+        var clientId = _configuration["Igdb:ClientId"];
+        var token = await GetAccessTokenAsync(cancellationToken);
+
+        var client = _httpClientFactory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, IgdbGamesCountUrl)
+        {
+            Content = new StringContent($"where {whereClause};"),
+        };
+        request.Headers.Add("Client-ID", clientId);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await client.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<IgdbCountResponse>(cancellationToken);
+        return result?.Count ?? 0;
     }
 
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
@@ -208,11 +259,15 @@ public sealed class GameLibraryService : IGameLibraryService
     {
         int? year = null;
         int? age = null;
+        DateTime? releaseDate = null;
         if (game.FirstReleaseDate is long unixSeconds)
         {
-            var releaseDate = DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
-            year = releaseDate.Year;
-            age = DateTime.UtcNow.Year - releaseDate.Year;
+            // Keep the FULL release date (not just the year) — the review-eligibility rule compares
+            // against the exact date so a game released late in a year isn't misclassified for months
+            // (feature 003, research.md Decision 1). Year/Age below stay for display only.
+            releaseDate = DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
+            year = releaseDate.Value.Year;
+            age = DateTime.UtcNow.Year - releaseDate.Value.Year;
         }
 
         var coverImageUrl = string.IsNullOrEmpty(game.Cover?.ImageId)
@@ -240,6 +295,7 @@ public sealed class GameLibraryService : IGameLibraryService
             coverImageUrl,
             year,
             age,
+            releaseDate,
             SystemRequirements: null, // IGDB does not expose system requirements.
             genres,
             developer,
@@ -272,4 +328,7 @@ public sealed class GameLibraryService : IGameLibraryService
     private sealed record TwitchTokenResponse(
         [property: JsonPropertyName("access_token")] string? AccessToken,
         [property: JsonPropertyName("expires_in")] int ExpiresIn);
+
+    private sealed record IgdbCountResponse(
+        [property: JsonPropertyName("count")] int Count);
 }

@@ -96,6 +96,11 @@ public sealed class GameDetailService : IGameDetailService
                 r.UpdatedAt))
             .ToListAsync(cancellationToken);
 
+        // STEP 6b — feature 003: compute the retro-review eligibility from the SAME IGDB fetch above
+        // (no extra query/call). Falls back to ineligible/null when IGDB has no release date (FR-002).
+        var isEligibleForReview = ReviewEligibility.IsEligible(igdb?.ReleaseDate, DateTime.UtcNow);
+        var reviewEligibleAtUtc = ReviewEligibility.EligibleAtUtc(igdb?.ReleaseDate);
+
         // STEP 7 — hand the finished, flat object back to the controller.
         return new GameDetailResponse(
             gameId,
@@ -112,6 +117,8 @@ public sealed class GameDetailService : IGameDetailService
             reviewCount,
             reviews,
             page,
-            pageSize);
+            pageSize,
+            isEligibleForReview,
+            reviewEligibleAtUtc);
     }
 }

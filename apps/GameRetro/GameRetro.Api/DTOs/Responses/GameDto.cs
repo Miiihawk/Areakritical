@@ -13,6 +13,7 @@ public sealed record GameDto(
     string? CoverImageUrl,
     int? ReleaseYear,
     int? Age,
+    DateTime? ReleaseDate,
     string? SystemRequirements,
     IReadOnlyList<string> Genres,
     string? Developer,
