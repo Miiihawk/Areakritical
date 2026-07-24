@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GameRetro.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+09bb88ea84cf717b60e8660f09cea941d1e79bb8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4e035a8c55ae47f77611f028b73c5456ddf24fa0")]
 [assembly: System.Reflection.AssemblyProductAttribute("GameRetro.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GameRetro.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

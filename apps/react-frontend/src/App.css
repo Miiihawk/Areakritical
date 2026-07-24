@@ -395,7 +395,10 @@ main {
 }
 
 .hero__title {
-  font-size: clamp(4rem, 13vw, 11rem);
+  /* "AREAKRITICAL" is one unbreakable word, so it cannot wrap — it renders about 7x the font size
+     wide and spills past .hero__copy's 40rem cap. Scaled to clear the .hero__visual sphere at every
+     two-column width (below 900px the hero stacks and the sphere is hidden, so this is moot). */
+  font-size: clamp(2.5rem, 7vw, 11rem);
   line-height: 0.92;
   font-weight: 700;
   letter-spacing: 0.01em;

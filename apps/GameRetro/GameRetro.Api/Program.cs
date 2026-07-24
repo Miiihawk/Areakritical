@@ -97,6 +97,7 @@ builder.Services.AddScoped<IProfileService, ProfileService>();            // US6
 builder.Services.AddScoped<IReportService, ReportService>();             // US7/US8
 builder.Services.AddScoped<IUserAdminService, UserAdminService>();        // US8
 builder.Services.AddScoped<IGameModerationService, GameModerationService>(); // US8
+builder.Services.AddScoped<IStatsService, StatsService>();                // Landing page stats
 
 var app = builder.Build();
 

@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-route
 import "./App.css";
 import { useAuth } from "./auth/useAuth";
 import { profileApi } from "./services/profileApi";
+import { statsApi, type SiteStats } from "./services/statsApi";
 import { RequireRole } from "./auth/RequireRole";
 import { RequireAuth } from "./auth/RequireAuth";
 import { LoginPage } from "./pages/LoginPage";
@@ -271,6 +272,62 @@ function AdminNavBar() {
   );
 }
 
+/** Compact formatting for the hero figures — "1.2K" rather than "1200". */
+const compactNumber = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/**
+ * The landing hero's headline figures, read from our own database via the public /api/stats
+ * endpoint (the landing page is shown to signed-out visitors, so the endpoint is anonymous).
+ * While the request is in flight the row shows placeholders so the hero doesn't shift; if it
+ * fails the row is dropped entirely rather than showing a visitor broken numbers.
+ */
+function HeroStats() {
+  const [stats, setStats] = useState<SiteStats | null>(null);
+  const [hasFailed, setHasFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    statsApi
+      .getSiteStats()
+      .then((result) => {
+        if (active) setStats(result);
+      })
+      .catch(() => {
+        if (active) setHasFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (hasFailed) {
+    return null;
+  }
+
+  const show = (value: number | undefined) =>
+    value === undefined ? "—" : compactNumber.format(value);
+
+  return (
+    <ul className="hero__stats">
+      <li>
+        <strong>{show(stats?.titlesReviewed)}</strong>
+        <span>Titles reviewed</span>
+      </li>
+      <li>
+        <strong>{show(stats?.retrospectives)}</strong>
+        <span>Retrospectives</span>
+      </li>
+      <li>
+        <strong>{show(stats?.members)}</strong>
+        <span>Members</span>
+      </li>
+    </ul>
+  );
+}
+
 function HomePage() {
   const { role } = useAuth();
 
@@ -335,20 +392,7 @@ function HomePage() {
             </Link>
           </div>
 
-          <ul className="hero__stats">
-            <li>
-              <strong>2.4K</strong>
-              <span>Titles archived</span>
-            </li>
-            <li>
-              <strong>18K</strong>
-              <span>Retrospectives</span>
-            </li>
-            <li>
-              <strong>96</strong>
-              <span>Genres tracked</span>
-            </li>
-          </ul>
+          <HeroStats />
         </div>
 
         {/* Hero visual — CSS "game core" medallion */}
